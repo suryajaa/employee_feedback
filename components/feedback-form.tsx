@@ -17,66 +17,40 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Progress } from "@/components/ui/progress"
 
-interface Question {
-  id: string
-  text: string
-  placeholder?: string
-}
-
 interface FeedbackFormProps {
   taskId: string
   taskTitle: string
-  questions: Question[]
+  questions: Array<{
+    id: string
+    text: string
+    placeholder?: string
+  }>
   onSubmit: (responses: Record<string, string>) => Promise<void>
 }
 
-// Storage wrapper that uses localStorage as fallback
+/* ---------------- LOCAL STORAGE HELPERS ---------------- */
+
 const storage = {
   async get(key: string) {
-    try {
-      // Try window.storage first (for production)
-      if (typeof window !== 'undefined' && (window as any).storage) {
-        return await (window as any).storage.get(key)
-      }
-      // Fallback to localStorage for local development
-      const value = localStorage.getItem(key)
-      return value ? { key, value, shared: false } : null
-    } catch (error) {
-      console.error('Storage get error:', error)
-      return null
-    }
+    const value = localStorage.getItem(key)
+    return value ? JSON.parse(value) : null
   },
-  async set(key: string, value: string) {
-    try {
-      // Try window.storage first (for production)
-      if (typeof window !== 'undefined' && (window as any).storage) {
-        return await (window as any).storage.set(key, value)
-      }
-      // Fallback to localStorage for local development
-      localStorage.setItem(key, value)
-      return { key, value, shared: false }
-    } catch (error) {
-      console.error('Storage set error:', error)
-      return null
-    }
+  async set(key: string, value: any) {
+    localStorage.setItem(key, JSON.stringify(value))
   },
   async delete(key: string) {
-    try {
-      // Try window.storage first (for production)
-      if (typeof window !== 'undefined' && (window as any).storage) {
-        return await (window as any).storage.delete(key)
-      }
-      // Fallback to localStorage for local development
-      localStorage.removeItem(key)
-      return { key, deleted: true, shared: false }
-    } catch (error) {
-      console.error('Storage delete error:', error)
-      return null
-    }
-  }
+    localStorage.removeItem(key)
+  },
 }
 
-export function FeedbackForm({ taskId, taskTitle, questions, onSubmit }: FeedbackFormProps) {
+/* ---------------- COMPONENT ---------------- */
+
+export function FeedbackForm({
+  taskId,
+  taskTitle,
+  questions,
+  onSubmit,
+}: FeedbackFormProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [responses, setResponses] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -87,145 +61,94 @@ export function FeedbackForm({ taskId, taskTitle, questions, onSubmit }: Feedbac
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [storageError, setStorageError] = useState<string | null>(null)
 
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const autoSaveTimer = useRef<NodeJS.Timeout | null>(null)
   const storageKey = `feedback_draft_${taskId}`
 
   const currentQuestion = questions[currentQuestionIndex]
-  const isFirstQuestion = currentQuestionIndex === 0
-  const isLastQuestion = currentQuestionIndex === questions.length - 1
+  const isFirst = currentQuestionIndex === 0
+  const isLast = currentQuestionIndex === questions.length - 1
   const currentResponse = responses[currentQuestion.id] || ""
-  const hasInput = currentResponse.trim().length > 0
 
-  // Calculate progress percentage
-  const answeredCount = Object.keys(responses).filter(key => responses[key]?.trim().length > 0).length
-  const progressPercentage = (answeredCount / questions.length) * 100
-  const allQuestionsAnswered = answeredCount === questions.length
+  const answeredCount = Object.values(responses).filter(v => v.trim()).length
+  const progress = (answeredCount / questions.length) * 100
+  const allAnswered = answeredCount === questions.length
 
-  // Load saved draft from persistent storage on mount
+  /* ---------------- LOAD DRAFT ---------------- */
+
   useEffect(() => {
     const loadDraft = async () => {
       try {
-        const result = await storage.get(storageKey)
-        if (result?.value) {
-          const savedData = JSON.parse(result.value)
-          setResponses(savedData.responses || {})
-          setCurrentQuestionIndex(savedData.currentQuestionIndex || 0)
-          setLastSaved(savedData.lastSaved ? new Date(savedData.lastSaved) : null)
+        const draft = await storage.get(storageKey)
+        if (draft) {
+          setResponses(draft.responses ?? {})
+          setCurrentQuestionIndex(draft.index ?? 0)
+          setLastSaved(draft.savedAt ? new Date(draft.savedAt) : null)
         }
-      } catch (error) {
-        console.error("Failed to load draft:", error)
+      } catch (err) {
+        console.error("Failed to load draft:", err)
         setStorageError("Failed to load saved draft")
       }
     }
     loadDraft()
-  }, [taskId, storageKey])
+  }, [storageKey])
 
-  // Auto-save function
-  const saveDraft = async (currentResponses: Record<string, string>, questionIndex: number) => {
-    setIsSaving(true)
-    setStorageError(null)
+  /* ---------------- AUTO SAVE ---------------- */
 
-    try {
-      const draftData = {
-        responses: currentResponses,
-        currentQuestionIndex: questionIndex,
-        lastSaved: new Date().toISOString(),
-      }
-
-      await storage.set(storageKey, JSON.stringify(draftData))
-      setLastSaved(new Date())
-    } catch (error) {
-      console.error("Failed to save draft:", error)
-      setStorageError("Failed to auto-save")
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  // Debounced auto-save when responses change
   useEffect(() => {
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current)
-    }
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
 
-    autoSaveTimerRef.current = setTimeout(() => {
+    autoSaveTimer.current = setTimeout(async () => {
       if (Object.keys(responses).length > 0) {
-        saveDraft(responses, currentQuestionIndex)
+        setIsSaving(true)
+        setStorageError(null)
+        try {
+          await storage.set(storageKey, {
+            responses,
+            index: currentQuestionIndex,
+            savedAt: new Date().toISOString(),
+          })
+          setLastSaved(new Date())
+        } catch (err) {
+          setStorageError("Failed to auto-save")
+        } finally {
+          setIsSaving(false)
+        }
       }
-    }, 2000) // Auto-save after 2 seconds of inactivity
+    }, 1500)
 
     return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current)
-      }
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     }
-  }, [responses, currentQuestionIndex])
+  }, [responses, currentQuestionIndex, storageKey])
 
-  const handleNext = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setIsAnimating(true)
-      setTimeout(() => {
-        setCurrentQuestionIndex(currentQuestionIndex + 1)
-        setIsAnimating(false)
-      }, 300)
-    }
+  /* ---------------- NAVIGATION ---------------- */
+
+  const navigateTo = (index: number) => {
+    setIsAnimating(true)
+    setTimeout(() => {
+      setCurrentQuestionIndex(index)
+      setIsAnimating(false)
+    }, 300)
   }
 
-  const handleBack = () => {
-    if (currentQuestionIndex > 0) {
-      setIsAnimating(true)
-      setTimeout(() => {
-        setCurrentQuestionIndex(currentQuestionIndex - 1)
-        setIsAnimating(false)
-      }, 300)
-    }
-  }
-
-  const handleResponseChange = (value: string) => {
-    setResponses((prev) => ({
-      ...prev,
-      [currentQuestion.id]: value,
-    }))
-  }
-
-  const handleSubmitClick = () => {
-    if (allQuestionsAnswered) {
-      setShowSubmitDialog(true)
-    }
-  }
+  /* ---------------- SUBMIT ---------------- */
 
   const handleConfirmSubmit = async () => {
     setShowSubmitDialog(false)
     setIsSubmitting(true)
-
     try {
       await onSubmit(responses)
-
-      // Clear saved draft after successful submission
-      try {
-        await storage.delete(storageKey)
-      } catch (error) {
-        console.error("Failed to clear draft:", error)
-      }
-
+      await storage.delete(storageKey)
       setIsSubmitted(true)
-    } catch (error) {
-      console.error("Failed to submit feedback:", error)
+    } catch (err) {
+      console.error("Submit failed", err)
       setStorageError("Failed to submit feedback. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const formatLastSaved = (date: Date | null) => {
-    if (!date) return ""
-    const now = new Date()
-    const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-
-    if (diff < 60) return "Saved just now"
-    if (diff < 3600) return `Saved ${Math.floor(diff / 60)} min ago`
-    return `Saved ${Math.floor(diff / 3600)} hour ago`
-  }
+  /* ---------------- SUCCESS STATE ---------------- */
 
   if (isSubmitted) {
     return (
@@ -253,9 +176,12 @@ export function FeedbackForm({ taskId, taskTitle, questions, onSubmit }: Feedbac
     )
   }
 
+  /* ---------------- MAIN UI ---------------- */
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-2xl">
+
         {/* Progress Header */}
         <div className="mb-8">
           <div className="text-center mb-4">
@@ -265,17 +191,16 @@ export function FeedbackForm({ taskId, taskTitle, questions, onSubmit }: Feedbac
             </p>
           </div>
 
-          {/* Enhanced Progress Bar */}
           <div className="space-y-2">
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">
                 {answeredCount} of {questions.length} answered
               </span>
               <span className="font-medium text-primary">
-                {Math.round(progressPercentage)}% complete
+                {Math.round(progress)}% complete
               </span>
             </div>
-            <Progress value={progressPercentage} className="h-2" />
+            <Progress value={progress} className="h-2" />
           </div>
 
           {/* Auto-save indicator */}
@@ -289,11 +214,10 @@ export function FeedbackForm({ taskId, taskTitle, questions, onSubmit }: Feedbac
               ) : lastSaved ? (
                 <>
                   <Check className="h-3 w-3 text-green-600" />
-                  <span className="text-muted-foreground">{formatLastSaved(lastSaved)}</span>
+                  <span className="text-muted-foreground">Saved just now</span>
                 </>
               ) : null}
             </div>
-
             {storageError && (
               <div className="flex items-center gap-1 text-amber-600">
                 <AlertCircle className="h-3 w-3" />
@@ -309,13 +233,14 @@ export function FeedbackForm({ taskId, taskTitle, questions, onSubmit }: Feedbac
             <CardTitle className="text-2xl">{currentQuestion.text}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
-            {/* Animated Textarea */}
-            <div className={`transition-all duration-300 ${isAnimating ? "opacity-0" : "opacity-100"}`}>
+            <div className={`transition-all duration-300 ${isAnimating ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"}`}>
               <Textarea
                 placeholder={currentQuestion.placeholder || "Share your thoughts here..."}
                 value={currentResponse}
-                onChange={(e) => handleResponseChange(e.target.value)}
-                className="min-h-40 resize-none rounded-lg border border-input bg-card p-4 text-base text-card-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                onChange={(e) =>
+                  setResponses(prev => ({ ...prev, [currentQuestion.id]: e.target.value }))
+                }
+                className="min-h-40 resize-none rounded-lg border border-input bg-card p-4 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               />
               <p className="mt-2 text-xs text-muted-foreground">
                 {currentResponse.length} characters
@@ -326,21 +251,29 @@ export function FeedbackForm({ taskId, taskTitle, questions, onSubmit }: Feedbac
             <div className="flex gap-3 pt-4">
               <Button
                 variant="outline"
-                onClick={handleBack}
-                disabled={isFirstQuestion}
+                onClick={() => navigateTo(currentQuestionIndex - 1)}
+                disabled={isFirst}
                 className="flex-1 bg-transparent"
               >
                 <ChevronLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
 
-              {!isLastQuestion ? (
-                <Button onClick={handleNext} disabled={!hasInput} className="flex-1">
+              {!isLast ? (
+                <Button
+                  onClick={() => navigateTo(currentQuestionIndex + 1)}
+                  disabled={!currentResponse.trim()}
+                  className="flex-1"
+                >
                   Next
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
-                <Button onClick={handleSubmitClick} disabled={!allQuestionsAnswered || isSubmitting} className="flex-1">
+                <Button
+                  onClick={() => setShowSubmitDialog(true)}
+                  disabled={!allAnswered || isSubmitting}
+                  className="flex-1"
+                >
                   {isSubmitting ? "Submitting..." : "Submit Feedback"}
                 </Button>
               )}
@@ -348,19 +281,13 @@ export function FeedbackForm({ taskId, taskTitle, questions, onSubmit }: Feedbac
           </CardContent>
         </Card>
 
-        {/* Question Summary with visual indicators */}
+        {/* Dot Navigation */}
         <div className="mt-8 rounded-lg bg-secondary/50 p-4">
           <div className="flex flex-wrap gap-2 justify-center">
             {questions.map((q, index) => (
               <button
                 key={q.id}
-                onClick={() => {
-                  setIsAnimating(true)
-                  setTimeout(() => {
-                    setCurrentQuestionIndex(index)
-                    setIsAnimating(false)
-                  }, 300)
-                }}
+                onClick={() => navigateTo(index)}
                 className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-all ${index === currentQuestionIndex
                     ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2"
                     : responses[q.id]?.trim()
@@ -382,7 +309,7 @@ export function FeedbackForm({ taskId, taskTitle, questions, onSubmit }: Feedbac
           <AlertDialogHeader>
             <AlertDialogTitle>Submit Feedback?</AlertDialogTitle>
             <AlertDialogDescription>
-              You've answered all {questions.length} questions. Once submitted, you won't be able to make changes to your responses. Are you sure you want to submit your feedback?
+              You've answered all {questions.length} questions. Once submitted, you won't be able to make changes. Are you sure?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

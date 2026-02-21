@@ -1,3 +1,7 @@
+"use client";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { ArrowRight, MessageSquare, Clock, CheckCircle2, AlertCircle } from "lucide-react"
@@ -32,50 +36,38 @@ const feedbackTasks = [
 function getStatusBadge(status: string) {
   switch (status) {
     case "pending":
-      return {
-        icon: AlertCircle,
-        label: "Pending",
-        bgColor: "bg-yellow-50 dark:bg-yellow-950/30",
-        textColor: "text-yellow-700 dark:text-yellow-300",
-        borderColor: "border-yellow-200 dark:border-yellow-800",
-      }
+      return { icon: AlertCircle, label: "Pending", bgColor: "bg-yellow-50 dark:bg-yellow-950/30", textColor: "text-yellow-700 dark:text-yellow-300", borderColor: "border-yellow-200 dark:border-yellow-800" }
     case "in-progress":
-      return {
-        icon: Clock,
-        label: "In Progress",
-        bgColor: "bg-blue-50 dark:bg-blue-950/30",
-        textColor: "text-blue-700 dark:text-blue-300",
-        borderColor: "border-blue-200 dark:border-blue-800",
-      }
+      return { icon: Clock, label: "In Progress", bgColor: "bg-blue-50 dark:bg-blue-950/30", textColor: "text-blue-700 dark:text-blue-300", borderColor: "border-blue-200 dark:border-blue-800" }
     case "submitted":
-      return {
-        icon: CheckCircle2,
-        label: "Submitted",
-        bgColor: "bg-green-50 dark:bg-green-950/30",
-        textColor: "text-green-700 dark:text-green-300",
-        borderColor: "border-green-200 dark:border-green-800",
-      }
+      return { icon: CheckCircle2, label: "Submitted", bgColor: "bg-green-50 dark:bg-green-950/30", textColor: "text-green-700 dark:text-green-300", borderColor: "border-green-200 dark:border-green-800" }
     default:
-      return {
-        icon: AlertCircle,
-        label: "Unknown",
-        bgColor: "bg-gray-50 dark:bg-gray-950/30",
-        textColor: "text-gray-700 dark:text-gray-300",
-        borderColor: "border-gray-200 dark:border-gray-800",
-      }
+      return { icon: AlertCircle, label: "Unknown", bgColor: "bg-gray-50", textColor: "text-gray-700", borderColor: "border-gray-200" }
   }
 }
 
 function formatDate(dateString: string) {
-  const date = new Date(dateString)
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  return new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
 export default function Dashboard() {
+  const { auth } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!auth.token) {
+      router.replace("/login");
+    } else if (auth.role === "manager") {
+      router.replace("/manager/dashboard");
+    }
+  }, [auth, router]);
+
+  // Don't render until auth resolves
+  if (!auth.token || auth.role !== "employee") return null;
+
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-12">
-        {/* Header */}
         <div className="mb-12">
           <div className="mb-4 flex items-center gap-3">
             <MessageSquare className="h-8 w-8 text-primary" />
@@ -86,7 +78,6 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Feedback Tasks Grid */}
         <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
           {feedbackTasks.map((task) => {
             const statusBadge = getStatusBadge(task.status)
@@ -96,9 +87,7 @@ export default function Dashboard() {
                 <Card className="group h-full overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer border border-border">
                   <CardHeader className="pb-4">
                     <div className="mb-3 flex items-center gap-2">
-                      <div
-                        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm font-medium ${statusBadge.bgColor} ${statusBadge.textColor} ${statusBadge.borderColor}`}
-                      >
+                      <div className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm font-medium ${statusBadge.bgColor} ${statusBadge.textColor} ${statusBadge.borderColor}`}>
                         <StatusIcon className="h-3.5 w-3.5" />
                         {statusBadge.label}
                       </div>
@@ -127,12 +116,10 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* Info Section */}
         <div className="mt-16 rounded-lg bg-secondary/50 p-8 text-center border border-border">
           <h2 className="mb-2 text-xl font-semibold text-foreground">Why Your Feedback Matters</h2>
           <p className="text-muted-foreground">
-            Your honest feedback helps us understand what's working well and where we can improve. Every response is
-            valuable and contributes to building a better workplace for everyone.
+            Your honest feedback helps us understand what's working well and where we can improve.
           </p>
         </div>
       </div>
