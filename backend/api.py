@@ -12,6 +12,14 @@ from auth.auth_routes import router as auth_router
 from auth.dependencies import get_current_user
 from database import init_db, get_db, User
 
+import os
+
+ALLOWED_ORIGINS = os.environ.get(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000"
+).split(",")
+
+
 EMBEDDING_DIM = 384
 MAX_EMPLOYEES_PER_DEPT = 20
 
@@ -26,12 +34,11 @@ app.include_router(auth_router, prefix="/auth")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 class FeedbackRequest(BaseModel):
     department: str
     feedback_text: str
