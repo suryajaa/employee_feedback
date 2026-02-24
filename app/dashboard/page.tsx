@@ -54,11 +54,17 @@ export default function Dashboard() {
   const { auth } = useAuth();
   const router = useRouter();
 
+  console.log("auth state:", JSON.stringify(auth));
+
   useEffect(() => {
     if (!auth.token) {
       router.replace("/login");
+    } else if (auth.role === "admin") {
+      router.replace("/admin/register");
     } else if (auth.role === "manager") {
       router.replace("/manager/dashboard");
+    } else if (auth.role === "employee" && auth.has_submitted) {
+      router.replace("/already-submitted");
     }
   }, [auth, router]);
 

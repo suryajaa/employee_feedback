@@ -1,7 +1,8 @@
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
-from fastapi import Depends, HTTPException, status
+import os
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 pwd_context = CryptContext(
@@ -10,9 +11,8 @@ pwd_context = CryptContext(
     bcrypt__rounds=12
 )
 
-SECRET_KEY = "super-secret-key"
+SECRET_KEY = os.environ.get("SECRET_KEY", "super-secret-key")
 ALGORITHM = "HS256"
-
 security = HTTPBearer()
 
 def hash_password(password: str):

@@ -16,6 +16,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Progress } from "@/components/ui/progress"
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 interface FeedbackFormProps {
   taskId: string
@@ -72,6 +74,9 @@ export function FeedbackForm({
   const answeredCount = Object.values(responses).filter(v => v.trim()).length
   const progress = (answeredCount / questions.length) * 100
   const allAnswered = answeredCount === questions.length
+
+  const { logout } = useAuth();
+  const router = useRouter();
 
   /* ---------------- LOAD DRAFT ---------------- */
 
@@ -152,7 +157,7 @@ export function FeedbackForm({
 
   if (isSubmitted) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+      <div className="flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-md">
           <Card className="border-0 shadow-lg">
             <CardContent className="pt-12 pb-12">
@@ -160,20 +165,25 @@ export function FeedbackForm({
                 <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                   <Check className="h-8 w-8 text-primary" />
                 </div>
-                <h2 className="mb-2 text-2xl font-bold text-foreground">Thank You!</h2>
+                <h2 className="mb-2 text-2xl font-bold">Thank You!</h2>
                 <p className="mb-8 text-muted-foreground">
-                  Your feedback has been successfully submitted. We truly appreciate you taking the time to share your
-                  valuable insights.
+                  Your feedback has been successfully submitted and anonymously aggregated.
                 </p>
-                <Button asChild className="w-full">
-                  <a href="/dashboard">Return to Dashboard</a>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    logout();
+                    router.push("/login");
+                  }}
+                >
+                  Logout
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-    )
+    );
   }
 
   /* ---------------- MAIN UI ---------------- */
@@ -289,10 +299,10 @@ export function FeedbackForm({
                 key={q.id}
                 onClick={() => navigateTo(index)}
                 className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-all ${index === currentQuestionIndex
-                    ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2"
-                    : responses[q.id]?.trim()
-                      ? "bg-primary/20 text-primary hover:bg-primary/30"
-                      : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                  ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2"
+                  : responses[q.id]?.trim()
+                    ? "bg-primary/20 text-primary hover:bg-primary/30"
+                    : "bg-secondary text-muted-foreground hover:bg-secondary/80"
                   }`}
                 title={`Question ${index + 1}${responses[q.id]?.trim() ? " (answered)" : ""}`}
               >

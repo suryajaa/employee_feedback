@@ -115,7 +115,7 @@ export default function FeedbackPage() {
 
     console.log("🔥 Sending to backend with token");
 
-    const res = await fetch("http://localhost:8000/feedback/submit", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/feedback/submit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

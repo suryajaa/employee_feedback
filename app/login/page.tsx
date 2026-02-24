@@ -18,7 +18,7 @@ export default function LoginPage() {
         setError("");
         setLoading(true);
         try {
-            const res = await fetch("http://localhost:8000/auth/login", {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
@@ -29,6 +29,7 @@ export default function LoginPage() {
                 token: data.access_token,
                 role: data.role,
                 department: data.department,
+                has_submitted: data.has_submitted,
             });
             if (data.role === "manager") {
                 router.push("/manager/dashboard");

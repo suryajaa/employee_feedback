@@ -3,7 +3,7 @@ import BarChart from "@/components/charts/BarChart";
 import InsightsSummary from "@/components/charts/InsightsSummary";
 
 async function getInsights() {
-    const res = await fetch("http://localhost:8000/aggregate", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/aggregate`, {
         cache: "no-store",
     });
 

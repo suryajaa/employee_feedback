@@ -1,11 +1,11 @@
 "use client";
-
 import { createContext, useContext, useState, useEffect } from "react";
 
 type AuthState = {
     token: string | null;
-    role: "employee" | "manager" | null;
+    role: "employee" | "manager" | "admin" | null;
     department: string | null;
+    has_submitted: boolean;
 };
 
 const AuthContext = createContext<{
@@ -13,7 +13,7 @@ const AuthContext = createContext<{
     login: (data: AuthState) => void;
     logout: () => void;
 }>({
-    auth: { token: null, role: null, department: null },
+    auth: { token: null, role: null, department: null, has_submitted: false },
     login: () => { },
     logout: () => { },
 });
@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token: null,
         role: null,
         department: null,
+        has_submitted: false,
     });
 
     useEffect(() => {
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = () => {
-        setAuth({ token: null, role: null, department: null });
+        setAuth({ token: null, role: null, department: null, has_submitted: false });
         localStorage.removeItem("auth");
     };
 
