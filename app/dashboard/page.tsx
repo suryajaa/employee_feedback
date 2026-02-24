@@ -64,7 +64,7 @@ export default function Dashboard() {
     } else if (auth.role === "manager") {
       router.replace("/manager/dashboard");
     } else if (auth.role === "employee" && auth.has_submitted) {
-      router.replace("/already-submitted");
+      router.replace("/already_submitted");
     }
   }, [auth, router]);
 
