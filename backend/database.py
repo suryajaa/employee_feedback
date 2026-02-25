@@ -4,7 +4,6 @@ import os
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./secureview.db")
 
-# PostgreSQL fix — Railway gives a URL starting with postgres:// but SQLAlchemy needs postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -20,11 +19,15 @@ class User(Base):
     password = Column(String, nullable=False)
     role = Column(String, nullable=False)
     department = Column(String, nullable=False)
-    has_submitted = Column(Boolean, default=False)
+    submitted_form_1 = Column(Boolean, default=False)
+    submitted_form_2 = Column(Boolean, default=False)
+    submitted_form_3 = Column(Boolean, default=False)
 
 class DepartmentState(Base):
     __tablename__ = "department_states"
-    department = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True)  # "{department}_{form_id}"
+    department = Column(String, nullable=False)
+    form_id = Column(String, nullable=False)
     client_count = Column(Integer, default=0)
     round_complete = Column(Boolean, default=False)
     aggregated_embedding = Column(LargeBinary, nullable=True)

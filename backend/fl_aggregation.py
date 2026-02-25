@@ -1,5 +1,4 @@
 import numpy as np
-from typing import Dict
 from sqlalchemy.orm import Session
 
 class DepartmentFLState:
@@ -33,42 +32,41 @@ class DepartmentFLState:
         self.aggregated_embedding = np.zeros(self.embedding_dim)
 
 
-def load_department_state(department: str, embedding_dim: int, max_clients: int, db: Session) -> DepartmentFLState:
-    """Load state from DB on startup or first access."""
+def _state_id(department: str, form_id: str) -> str:
+    return f"{department}_{form_id}"
+
+
+def load_department_state(department: str, form_id: str, embedding_dim: int, max_clients: int, db: Session) -> DepartmentFLState:
     from database import DepartmentState
-
     state = DepartmentFLState(embedding_dim=embedding_dim, max_clients=max_clients)
-    db_row = db.query(DepartmentState).filter(DepartmentState.department == department).first()
-
+    db_row = db.query(DepartmentState).filter(
+        DepartmentState.id == _state_id(department, form_id)
+    ).first()
     if db_row:
         state.client_count = db_row.client_count
         state.round_complete = db_row.round_complete
         if db_row.aggregated_embedding:
             state.aggregated_embedding = np.frombuffer(db_row.aggregated_embedding, dtype=np.float64).copy()
-
     return state
 
 
-def save_department_state(department: str, state: DepartmentFLState, db: Session):
-    """Persist aggregated state to DB after every submission."""
+def save_department_state(department: str, form_id: str, state: DepartmentFLState, db: Session):
     from database import DepartmentState
-
-    db_row = db.query(DepartmentState).filter(DepartmentState.department == department).first()
+    sid = _state_id(department, form_id)
+    db_row = db.query(DepartmentState).filter(DepartmentState.id == sid).first()
     if not db_row:
-        db_row = DepartmentState(department=department)
+        db_row = DepartmentState(id=sid, department=department, form_id=form_id)
         db.add(db_row)
-
     db_row.client_count = state.client_count
     db_row.round_complete = state.round_complete
     db_row.aggregated_embedding = state.aggregated_embedding.astype(np.float64).tobytes()
     db.commit()
 
 
-def reset_department_state(department: str, db: Session):
-    """Wipe aggregated state for a new cycle."""
+def reset_department_state(department: str, form_id: str, db: Session):
     from database import DepartmentState
-
-    db_row = db.query(DepartmentState).filter(DepartmentState.department == department).first()
+    sid = _state_id(department, form_id)
+    db_row = db.query(DepartmentState).filter(DepartmentState.id == sid).first()
     if db_row:
         db_row.client_count = 0
         db_row.round_complete = False

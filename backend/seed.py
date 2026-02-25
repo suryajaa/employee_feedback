@@ -19,7 +19,9 @@ def seed():
                 password=hash_password(u["password"]),
                 role=u["role"],
                 department=u["department"],
-                has_submitted=False
+                submitted_form_1=False,
+                submitted_form_2=False,
+                submitted_form_3=False,
             ))
             print(f"✅ Created {u['role']}: {u['email']}")
         else:
