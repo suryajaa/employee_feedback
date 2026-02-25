@@ -5,14 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 
-// Mock data for feedback questions
-const feedbackQuestionsData: Record<
-  string,
-  {
-    title: string;
-    questions: Array<{ id: string; text: string; placeholder?: string }>;
-  }
-> = {
+const feedbackQuestionsData: Record<string, {
+  title: string;
+  questions: Array<{ id: string; text: string; placeholder?: string }>;
+}> = {
   "1": {
     title: "Manager Leadership Feedback",
     questions: [
@@ -56,31 +52,37 @@ export default function FeedbackPage() {
 
   const id = params?.id as string;
   const feedbackData = feedbackQuestionsData[id];
-
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🔐 AUTH + ROLE GUARD (CORRECT PLACE)
+  const submittedMap: Record<string, boolean> = {
+    "1": auth.submitted_form_1,
+    "2": auth.submitted_form_2,
+    "3": auth.submitted_form_3,
+  };
+
   useEffect(() => {
     if (!auth.token) {
       router.replace("/login");
       return;
     }
-
     if (auth.role !== "employee") {
       router.replace("/unauthorized");
+      return;
     }
-  }, [auth, router]);
+    // Redirect if already submitted this form
+    if (submittedMap[id]) {
+      router.replace(`/already_submitted?form=${id}`);
+      return;
+    }
+  }, [auth, router, id]);
 
-  // ⏳ Loading state
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 300);
     return () => clearTimeout(timer);
   }, []);
 
-  // Prevent render until auth resolves
-  if (!auth.token || auth.role !== "employee") {
-    return null;
-  }
+  if (!auth.token || auth.role !== "employee") return null;
+  if (submittedMap[id]) return null;
 
   if (isLoading) {
     return (
@@ -95,47 +97,31 @@ export default function FeedbackPage() {
       <div className="flex min-h-screen items-center justify-center text-center">
         <div>
           <h1 className="text-2xl font-bold mb-2">Feedback not found</h1>
-          <p className="text-muted-foreground mb-6">
-            The feedback survey you're looking for doesn't exist.
-          </p>
-          <a
-            href="/dashboard"
-            className="rounded-lg bg-primary px-6 py-2 text-white"
-          >
-            Return to Dashboard
-          </a>
+          <p className="text-muted-foreground mb-6">The feedback survey you're looking for doesn't exist.</p>
+          <a href="/dashboard" className="rounded-lg bg-primary px-6 py-2 text-white">Return to Dashboard</a>
         </div>
       </div>
     );
   }
 
-  // 🚀 BACKEND SUBMISSION
   const handleSubmit = async (responses: Record<string, string>) => {
     const combinedText = Object.values(responses).join(" ");
-
-    console.log("🔥 Sending to backend with token");
-
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/feedback/submit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${auth.token}`, // 🔑 THIS WAS MISSING
+        Authorization: `Bearer ${auth.token}`,
       },
       body: JSON.stringify({
-        department: auth.department,           // 🔑 use real dept
+        department: auth.department,
         feedback_text: combinedText,
+        form_id: id,
       }),
     });
-
-    if (!res.ok) {
-      throw new Error("Backend error");
-    }
-
+    if (!res.ok) throw new Error("Backend error");
     const data = await res.json();
     console.log("✅ Backend response:", data);
   };
-
-
 
   return (
     <FeedbackForm

@@ -5,7 +5,9 @@ type AuthState = {
     token: string | null;
     role: "employee" | "manager" | "admin" | null;
     department: string | null;
-    has_submitted: boolean;
+    submitted_form_1: boolean;
+    submitted_form_2: boolean;
+    submitted_form_3: boolean;
 };
 
 const AuthContext = createContext<{
@@ -13,7 +15,7 @@ const AuthContext = createContext<{
     login: (data: AuthState) => void;
     logout: () => void;
 }>({
-    auth: { token: null, role: null, department: null, has_submitted: false },
+    auth: { token: null, role: null, department: null, submitted_form_1: false, submitted_form_2: false, submitted_form_3: false },
     login: () => { },
     logout: () => { },
 });
@@ -23,7 +25,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token: null,
         role: null,
         department: null,
-        has_submitted: false,
+        submitted_form_1: false,
+        submitted_form_2: false,
+        submitted_form_3: false,
     });
 
     useEffect(() => {
@@ -37,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = () => {
-        setAuth({ token: null, role: null, department: null, has_submitted: false });
+        setAuth({ token: null, role: null, department: null, submitted_form_1: false, submitted_form_2: false, submitted_form_3: false });
         localStorage.removeItem("auth");
     };
 

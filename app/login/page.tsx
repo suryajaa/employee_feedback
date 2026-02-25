@@ -29,10 +29,14 @@ export default function LoginPage() {
                 token: data.access_token,
                 role: data.role,
                 department: data.department,
-                has_submitted: data.has_submitted,
+                submitted_form_1: data.submitted_form_1,
+                submitted_form_2: data.submitted_form_2,
+                submitted_form_3: data.submitted_form_3,
             });
             if (data.role === "manager") {
                 router.push("/manager/dashboard");
+            } else if (data.role === "admin") {
+                router.push("/admin/register");
             } else {
                 router.push("/dashboard");
             }
