@@ -28,7 +28,8 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
-app.include_router(auth_router, prefix="/auth")
+
+# CORS middleware MUST come before routers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -36,6 +37,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router, prefix="/auth")
 
 class FeedbackRequest(BaseModel):
     department: str
@@ -60,7 +63,6 @@ def submit_feedback(
 
     db_user = db.query(User).filter(User.email == user["email"]).first()
 
-    # Check if already submitted this form
     submitted_field = f"submitted_form_{payload.form_id}"
     if getattr(db_user, submitted_field):
         raise HTTPException(status_code=403, detail=f"Already submitted form {payload.form_id}")
