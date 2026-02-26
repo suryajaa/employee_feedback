@@ -48,7 +48,7 @@ const feedbackQuestionsData: Record<string, {
 export default function FeedbackPage() {
   const params = useParams();
   const router = useRouter();
-  const { auth } = useAuth();
+  const { auth, login } = useAuth();
 
   const id = params?.id as string;
   const feedbackData = feedbackQuestionsData[id];
@@ -119,8 +119,12 @@ export default function FeedbackPage() {
       }),
     });
     if (!res.ok) throw new Error("Backend error");
-    const data = await res.json();
-    console.log("✅ Backend response:", data);
+
+    // Update auth state so dashboard shows correct submission status
+    login({
+      ...auth,
+      [`submitted_form_${id}`]: true,
+    } as any);
   };
 
   return (

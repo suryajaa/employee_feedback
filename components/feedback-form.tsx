@@ -170,11 +170,15 @@ export function FeedbackForm({
                   Your feedback has been successfully submitted and anonymously aggregated.
                 </p>
                 <Button
+                  className="w-full mb-3"
+                  onClick={() => router.push("/dashboard")}
+                >
+                  Return to Dashboard
+                </Button>
+                <Button
+                  variant="outline"
                   className="w-full"
-                  onClick={() => {
-                    logout();
-                    router.push("/login");
-                  }}
+                  onClick={() => { logout(); router.push("/login"); }}
                 >
                   Logout
                 </Button>
