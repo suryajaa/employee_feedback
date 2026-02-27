@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { Shield, UserPlus, CheckCircle2, AlertCircle, Users, RefreshCw } from "lucide-react";
+import { Shield, UserPlus, CheckCircle2, AlertCircle, Users, RefreshCw, Trash2 } from "lucide-react";
 
 const DEPARTMENTS = ["engineering", "sales", "hr", "design"];
 const ROLES = ["employee", "manager"];
@@ -11,7 +11,9 @@ type User = {
     email: string;
     role: string;
     department: string;
-    has_submitted: boolean;
+    submitted_form_1: boolean;
+    submitted_form_2: boolean;
+    submitted_form_3: boolean;
 };
 
 export default function AdminRegister() {
@@ -27,6 +29,7 @@ export default function AdminRegister() {
     const [success, setSuccess] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [deletingEmail, setDeletingEmail] = useState<string | null>(null);
 
     useEffect(() => {
         if (!auth.token || auth.role !== "admin") {
@@ -49,6 +52,23 @@ export default function AdminRegister() {
             console.error("Failed to fetch users:", err);
         } finally {
             setFetchingUsers(false);
+        }
+    };
+
+    const handleDelete = async (emailToDelete: string) => {
+        if (!confirm(`Are you sure you want to delete ${emailToDelete}?`)) return;
+        setDeletingEmail(emailToDelete);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/users/${emailToDelete}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${auth.token}` },
+            });
+            if (!res.ok) throw new Error("Failed to delete user");
+            fetchUsers();
+        } catch (err) {
+            console.error("Failed to delete user:", err);
+        } finally {
+            setDeletingEmail(null);
         }
     };
 
@@ -87,7 +107,7 @@ export default function AdminRegister() {
             setPassword("");
             setRole("employee");
             setDepartment("engineering");
-            fetchUsers(); // refresh the list
+            fetchUsers();
         } catch (err) {
             setError("Failed to register user. Please try again.");
         } finally {
@@ -99,6 +119,8 @@ export default function AdminRegister() {
         employee: "bg-indigo-500/20 text-indigo-300",
         manager: "bg-purple-500/20 text-purple-300",
     };
+
+    const FORM_LABELS = ["Leadership", "Collaboration", "Culture"];
 
     return (
         <div className="min-h-screen bg-slate-950 p-6">
@@ -240,23 +262,40 @@ export default function AdminRegister() {
                     ) : allUsers.length === 0 ? (
                         <p className="text-sm text-slate-500 text-center py-4">No users registered yet.</p>
                     ) : (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             {allUsers.map((u, i) => (
-                                <div key={i} className="flex items-center justify-between bg-slate-800/50 rounded-lg px-4 py-3">
-                                    <span className="text-sm text-white">{u.email}</span>
-                                    <div className="flex items-center gap-2">
-                                        {u.role === "employee" && (
-                                            <span className={`text-xs px-2 py-0.5 rounded-full ${u.has_submitted ? "bg-green-500/20 text-green-300" : "bg-slate-700 text-slate-400"}`}>
-                                                {u.has_submitted ? "submitted" : "pending"}
+                                <div key={i} className="bg-slate-800/50 rounded-lg px-4 py-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-white">{u.email}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs px-2 py-0.5 rounded-full ${roleColors[u.role] ?? "bg-slate-700 text-slate-300"}`}>
+                                                {u.role}
                                             </span>
-                                        )}
-                                        <span className={`text-xs px-2 py-0.5 rounded-full ${roleColors[u.role] ?? "bg-slate-700 text-slate-300"}`}>
-                                            {u.role}
-                                        </span>
-                                        <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                                            {u.department}
-                                        </span>
+                                            <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
+                                                {u.department}
+                                            </span>
+                                            <button
+                                                onClick={() => handleDelete(u.email)}
+                                                disabled={deletingEmail === u.email}
+                                                className="text-slate-500 hover:text-red-400 transition-colors disabled:opacity-40 ml-1"
+                                                title="Delete user"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
                                     </div>
+                                    {u.role === "employee" && (
+                                        <div className="flex items-center gap-2 mt-2">
+                                            {[u.submitted_form_1, u.submitted_form_2, u.submitted_form_3].map((submitted, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className={`text-xs px-2 py-0.5 rounded-full ${submitted ? "bg-green-500/20 text-green-300" : "bg-slate-700 text-slate-500"}`}
+                                                >
+                                                    {FORM_LABELS[idx]}: {submitted ? "✓" : "pending"}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
